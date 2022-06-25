@@ -1,0 +1,176 @@
+
+<!DOCTYPE html>
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Luapp &#8212; ym-luapp  ドキュメント</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/translations.js"></script>
+    <link rel="index" title="索引" href="genindex.html" />
+    <link rel="search" title="検索" href="search.html" />
+    <link rel="prev" title="はじめに" href="intro.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>ナビゲーション</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="総合索引"
+             accesskey="I">索引</a></li>
+        <li class="right" >
+          <a href="intro.html" title="はじめに"
+             accesskey="P">前へ</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">ym-luapp  ドキュメント</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Luapp</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="luapp">
+<span id="id1"></span><h1>Luapp<a class="headerlink" href="#luapp" title="このヘッドラインへのパーマリンク">¶</a></h1>
+<p>Lua の C-API 関数で用いられている <cite>lua_State</cite> を C++ のクラスで
+ラップしたもの． <cite>lua_State</cite> を第一引数として用いるほとんどの関数
+と同様のメンバ関数を用意している．</p>
+<div class="section" id="id2">
+<h2>Luapp で用いる列挙型<a class="headerlink" href="#id2" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<p>メンバ関数の戻り値として用いられる <cite>RetType</cite>
+という列挙型を定義している．</p>
+<table class="colwidths-auto docutils align-left">
+<thead>
+<tr class="row-odd"><th class="head"><p>値</p></th>
+<th class="head"><p>意味</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>OK</p></td>
+<td><p>正常終了</p></td>
+</tr>
+<tr class="row-odd"><td><p>ERROR</p></td>
+<td><p>エラー</p></td>
+</tr>
+<tr class="row-even"><td><p>NOT_FOUND</p></td>
+<td><p>対象が見つからなかった．</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="id3">
+<h2>コンストラクタ・デストラクタ<a class="headerlink" href="#id3" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<p>通常は以下の形式で新しいオブジェクトを生成する．</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Luapp</span> <span class="n">lua</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><cite>lua</cite> は内部で Lua インタプリタに関するリソースを管理する．
+<cite>lua</cite> オブジェクトが破壊されたときに Lua インタプリタに関するリソース
+も開放される．</p>
+<p>Lua インタプリタに対してメモリアロケータなどの情報を渡す場合には以下の
+ようにする．</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">lua_Alloc</span> <span class="n">f</span> <span class="o">=</span> <span class="o">...</span> <span class="o">//</span> <span class="n">メモリアロケータ</span>
+<span class="n">void</span><span class="o">*</span> <span class="n">ud</span> <span class="o">=</span> <span class="o">...</span> <span class="o">//</span> <span class="n">ユーザーデータ</span>
+
+<span class="n">Luapp</span> <span class="n">lua</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">ud</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>この形式でも <cite>lua</cite> オブジェクトが破壊されると Lua インタプリタのリソー
+スも開放される．</p>
+<p>一方，すでに Lua インタプリタを生成している場合には以下の形式を用いる．</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">lua_State</span><span class="o">*</span> <span class="n">L</span> <span class="o">=</span> <span class="o">..</span> <span class="o">//</span> <span class="n">Lua</span> <span class="n">インタプリタのリソースを表すポインタ</span>
+
+<span class="n">Luapp</span> <span class="n">lua</span><span class="p">(</span><span class="n">L</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>この形式の場合， <cite>lua</cite> が破壊されても <cite>L</cite> のリソースは開放されない．</p>
+</div>
+<div class="section" id="id4">
+<h2>基本的なスタック操作<a class="headerlink" href="#id4" title="このヘッドラインへのパーマリンク">¶</a></h2>
+<p>Lua の C-API は Lua インタプリタ上のスタックを介してデータのやり取りを
+行う．
+ただし，通常のスタックと異なり現在スタックに積まれている任意の要素を
+アクセス可能である．
+そのため，データを扱うためにはスタック上のインデックスを指定する
+必要がある．通常，スタックのインデックスは1から始まり，最大値は現在の
+スタックに積まれている要素数である．
+ただし，負数を指定した場合にはスタックの先頭（最後にプッシュされた要素）
+からの逆向きの位置となる．
+さらに通常のスタックとは異なる領域に格納された upvalue という値もある
+ため，見かけ上のインデックスを実際のインデックスに変換する必要がある．
+そのための関数が <cite>absindex()</cite> である．</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">int</span> <span class="n">absindex</span><span class="p">(</span><span class="nb">int</span> <span class="n">idx</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>通常のインデックスの場合は与えられた値をそのまま返す．
+負数の場合にはスタックの底からの位置に変換して返す．</p>
+</div>
+</div>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">目次</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Luapp</a><ul>
+<li><a class="reference internal" href="#id2">Luapp で用いる列挙型</a></li>
+<li><a class="reference internal" href="#id3">コンストラクタ・デストラクタ</a></li>
+<li><a class="reference internal" href="#id4">基本的なスタック操作</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>前のトピックへ</h4>
+  <p class="topless"><a href="intro.html"
+                        title="前の章へ">はじめに</a></p>
+  <div role="note" aria-label="source link">
+    <h3>このページ</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/luapp.rst.txt"
+            rel="nofollow">ソースコードを表示</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">クイック検索</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="検索" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>ナビゲーション</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="総合索引"
+             >索引</a></li>
+        <li class="right" >
+          <a href="intro.html" title="はじめに"
+             >前へ</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">ym-luapp  ドキュメント</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Luapp</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2022, Yusuke Matsunaga.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.5.1.
+    </div>
+  </body>
+</html>
