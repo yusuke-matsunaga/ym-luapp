@@ -7,9 +7,443 @@
 /// All rights reserved.
 
 #include "ym/Luapp.h"
+#include <libgen.h> // for dirname()
+#include <ym/ReadLine.h>
 
 
 BEGIN_NAMESPACE_LUAPP
+
+// @brief インタプリタのメイン処理を行う．
+int
+Luapp::main_loop(
+  int argc,   ///< [in] コマンドラインの引数の数
+  char** argv ///< [in] コマンドラインの引数の配列
+)
+{
+  if ( argc == 1 ) {
+    // インタラクティブモード
+    const char* prompt{"% "};
+    for ( ; ; ) {
+      string linebuf;
+      if ( !ReadLine::get_line(prompt, linebuf) ) {
+	break;
+      }
+      int err = L_loadstring(linebuf.c_str()) || pcall(0, 0, 0);
+      if ( err ) {
+	cerr << to_string(-1) << endl;
+	pop(1);
+      }
+    }
+  }
+  else if ( argc >= 2 ) {
+    // 引数を lua のグローバル変数 "arg" にセットする．
+    create_table(argc, 0);
+    for ( int i = 0; i < argc; ++ i ) {
+      push_string(argv[i]);
+      set_table(-2, i);
+    }
+    set_global("arg");
+    // 先頭の引数をスクリプトファイルとみなして実行する．
+    char* init_file = argv[1];
+    string script{argv[1]};
+    // スクリプトファイルの場所を変数 "script_dir" にセットする．
+    char* dir_name = dirname(init_file);
+    push_string(dir_name);
+    set_global("script_dir");
+    if ( script != string{} && L_dofile(script.c_str()) ) {
+      cerr << to_string(-1) << endl;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+// @brief 指定したフィールドを整数に変換する．
+Luapp::RetType
+Luapp::get_int_field(
+  int index,
+  const char* key,
+  lua_Integer& val
+)
+{
+  RetType ret = ERROR;
+  int type = get_field(index, key);
+  if ( type == LUA_TNIL ) {
+    // 存在しなかった．
+    ret = NOT_FOUND;
+  }
+  else {
+    bool isnum;
+    tie(isnum, val) = to_integer(-1);
+    if ( isnum ) {
+      ret = OK;
+    }
+    else {
+      // 異なる型だった．
+      ret = ERROR;
+      cerr << "Error: '" << key << "' should be an integer." << endl;
+    }
+  }
+
+  // get_field() で積まれた要素を捨てる．
+  pop(1);
+
+  return ret;
+}
+
+// @brief 指定したフィールドをブール値に変換する．
+Luapp::RetType
+Luapp::get_boolean_field(
+  int index,
+  const char* key,
+  bool& val
+)
+{
+  RetType ret = ERROR;
+  int type = get_field(index, key);
+  if ( type == LUA_TNIL ) {
+    // 存在しなかった．
+    ret = NOT_FOUND;
+  }
+  else {
+    // 全ての型は boolean に変換可能
+    val = to_boolean(-1);
+    ret = OK;
+  }
+
+  // get_field() で積まれた要素を捨てる．
+  pop(1);
+
+  return ret;
+}
+
+// @brief 指定したフィールドを浮動小数点に変換する．
+Luapp::RetType
+Luapp::get_float_field(
+  int index,
+  const char* key,
+  lua_Number& val
+)
+{
+  RetType ret = ERROR;
+  int type = get_field(index, key);
+  if ( type == LUA_TNIL ) {
+    // 存在しなかった．
+    ret = NOT_FOUND;
+  }
+  else {
+    bool isnum;
+    tie(isnum, val) = to_number(-1);
+    if ( isnum ) {
+      ret = OK;
+    }
+    else {
+      // 異なる型だった．
+      ret = ERROR;
+      cerr << "Error: '" << key << "' should be a float number." << endl;
+    }
+  }
+
+  // get_field() で積まれた要素を捨てる．
+  pop(1);
+
+  return ret;
+}
+
+// @brief 指定したフィールドを文字列に変換する．
+Luapp::RetType
+Luapp::get_string_field(
+  int index,
+  const char* key,
+  string& val
+)
+{
+  RetType ret = ERROR;
+  int type = get_field(index, key);
+  if ( type == LUA_TNIL ) {
+    // 存在しなかった．
+    ret = NOT_FOUND;
+  }
+  else {
+    if ( type == LUA_TSTRING ) {
+      val = string(to_string(-1));
+      ret = OK;
+    }
+    else {
+      ret = ERROR;
+      cerr << "Error: '" << key << "' should be a string." << endl;
+    }
+  }
+
+  // get_field() で積まれた要素を捨てる．
+  pop(1);
+
+  return ret;
+}
+
+// @brief 指定したフィールドを vector<int> に変換する．
+Luapp::RetType
+Luapp::get_int_list_field(
+  int index,
+  const char* key,
+  vector<int>& val
+)
+{
+  RetType ret = ERROR;
+  int type = get_field(index, key);
+  val.clear();
+  if ( type == LUA_TNIL ) {
+    // 存在しなかった．
+    ret = NOT_FOUND;
+  }
+  else if ( type == LUA_TTABLE ) {
+    int n = L_len(-1);
+    ret = OK;
+    for ( int i = 1; i <= n; ++ i ) {
+      get_table(-1, i);
+      bool isnum;
+      int val1;
+      tie(isnum, val1) = to_integer(-1);
+      if ( isnum ) {
+	val.push_back(val1);
+      }
+      else {
+	cerr << "Error: illegal data in table '" << key << "'" << endl;
+	ret = ERROR;
+      }
+      // get_table() で積んだ値を捨てる．
+      pop(1);
+    }
+  }
+  else {
+    // エラー
+    cerr << "Error: illegal type in '" << key << "'" << endl;
+  }
+
+  // get_field() で積まれた要素を捨てる．
+  pop(1);
+
+  return ret;
+}
+
+// @brief 指定したフィールドを vector<string> に変換する．
+Luapp::RetType
+Luapp::get_string_list_field(
+  int index,
+  const char* key,
+  vector<string>& val
+)
+{
+  RetType ret = ERROR;
+  int type = get_field(index, key);
+  val.clear();
+  if ( type == LUA_TNIL ) {
+    // 存在しなかった．
+    ret = NOT_FOUND;
+  }
+  else if ( type == LUA_TTABLE ) {
+    int n = L_len(-1);
+    ret = OK;
+    for ( int i = 1; i <= n; ++ i ) {
+      get_table(-1, i);
+      string val1 = to_string(-1);
+      val.push_back(val1);
+      // get_table() で積んだ値を捨てる．
+      pop(1);
+    }
+  }
+  else {
+    // エラー
+    ret = ERROR;
+    cerr << "Error: illegal type in '" << key << "'" << endl;
+  }
+
+  // get_field() で積まれた要素を捨てる．
+  pop(1);
+
+  return ret;
+}
+
+// @brief 指定したフィールドを整数に変換してセッター関数を呼ぶ．
+Luapp::RetType
+Luapp::get_int_field(
+  int index,
+  const char* key,
+  std::function<bool(int)> setter
+)
+{
+  RetType ret = ERROR;
+  int type = get_field(index, key);
+  if ( type == LUA_TNIL ) {
+    // 存在しなかった．
+    ret = NOT_FOUND;
+  }
+  else {
+    bool isnum;
+    lua_Integer tmp;
+    tie(isnum, tmp) = to_integer(-1);
+    if ( isnum ) {
+      if ( setter(tmp) ) {
+	ret = OK;
+      }
+    }
+    else {
+      // 異なる型だった．
+      cerr << "Error: '" << key << "' should be an integer." << endl;
+    }
+  }
+
+  // get_field() で積まれた要素を捨てる．
+  pop(1);
+
+  return ret;
+}
+
+// @brief 指定したフィールドをブール値に変換してセッター関数を呼ぶ．
+Luapp::RetType
+Luapp::get_boolean_field(
+  int index,
+  const char* key,
+  std::function<bool(bool)> setter
+)
+{
+  RetType ret = ERROR;
+  int type = get_field(index, key);
+  if ( type == LUA_TNIL ) {
+    // 存在しなかった．
+    ret = NOT_FOUND;
+  }
+  else {
+    // 全ての型は boolean に変換可能
+    if ( setter(to_boolean(-1)) ) {
+      ret = OK;
+    }
+  }
+
+  // get_field() で積まれた要素を捨てる．
+  pop(1);
+
+  return ret;
+}
+
+// @brief 指定したフィールドを文字列に変換してセッター関数を呼ぶ．
+Luapp::RetType
+Luapp::get_string_field(
+  int index,
+  const char* key,
+  std::function<bool(const string&)> setter
+)
+{
+  RetType ret = ERROR;
+  int type = get_field(index, key);
+  if ( type == LUA_TNIL ) {
+    // 存在しなかった．
+    ret = NOT_FOUND;
+  }
+  else if ( type == LUA_TSTRING ) {
+    if ( setter(string(to_string(-1))) ) {
+      ret = OK;
+    }
+  }
+  else {
+    cerr << "Error: '" << key << "' should be a string." << endl;
+  }
+
+  // get_field() で積まれた要素を捨てる．
+  pop(1);
+
+  return ret;
+}
+
+// @brief 指定したフィールドを vector<int> に変換してセッター関数を呼ぶ．
+Luapp::RetType
+Luapp::get_int_list_field(
+  int index,
+  const char* key,
+  std::function<bool(const vector<int>&)> setter
+)
+{
+  RetType ret = ERROR;
+  int type = get_field(index, key);
+  if ( type == LUA_TNIL ) {
+    // 存在しなかった．
+    ret = NOT_FOUND;
+  }
+  else if ( type == LUA_TTABLE ) {
+    int n = L_len(-1);
+    vector<int> val;
+    val.reserve(n);
+    bool break_flag = false;
+    for ( int i = 1; i <= n; ++ i ) {
+      get_table(-1, i);
+      bool isnum;
+      int val1;
+      tie(isnum, val1) = to_integer(-1);
+      if ( isnum ) {
+	val.push_back(val1);
+      }
+      else {
+	cerr << "Error: illegal data in table '" << key << "'" << endl;
+	break_flag = true;
+	break;
+      }
+      // get_table() で積んだ値を捨てる．
+      pop(1);
+    }
+    if ( !break_flag && setter(val) ) {
+      ret = OK;
+    }
+  }
+  else {
+    // エラー
+    cerr << "Error: illegal type in '" << key << "'" << endl;
+  }
+
+  // get_field() で積まれた要素を捨てる．
+  pop(1);
+
+  return ret;
+}
+
+// @brief 指定したフィールドを vector<string> に変換してセッター関数を呼ぶ．
+Luapp::RetType
+Luapp::get_string_list_field(
+  int index,
+  const char* key,
+  std::function<bool(const vector<string>&)> setter
+)
+{
+  RetType ret = ERROR;
+  int type = get_field(index, key);
+  if ( type == LUA_TNIL ) {
+    // 存在しなかった．
+    ret = NOT_FOUND;
+  }
+  else if ( type == LUA_TTABLE ) {
+    int n = L_len(-1);
+    vector<string> val;
+    val.reserve(n);
+    for ( int i = 1; i <= n; ++ i ) {
+      get_table(-1, i);
+      string val1 = to_string(-1);
+      val.push_back(val1);
+      // get_table() で積んだ値を捨てる．
+      pop(1);
+    }
+    if ( setter(val) ) {
+      ret = OK;
+    }
+  }
+  else {
+    // エラー
+    cerr << "Error: illegal type in '" << key << "'" << endl;
+  }
+
+  // get_field() で積まれた要素を捨てる．
+  pop(1);
+
+  return ret;
+}
 
 BEGIN_NONAMESPACE
 

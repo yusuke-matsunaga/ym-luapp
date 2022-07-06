@@ -140,6 +140,31 @@ public:
 
 public:
   //////////////////////////////////////////////////////////////////////
+  /// @name スタンドアロンインタプリタのメインループ
+  /// @{
+  //////////////////////////////////////////////////////////////////////
+
+  /// @brief インタプリタのメイン処理を行う．
+  /// @retval 0 正常終了
+  /// @retval 1 異常終了
+  ///
+  /// - コマンドラインの引数がない時はインタラクティブモードになる．
+  /// - コマンドラインに引数がある時はバッチモードとして最初の引数を
+  ///   Lua スクリプトとみなして実行する．その際に以下の変数が定義される．
+  ///   * arg: 引数の配列．ただし添字が 1 から始まることに注意
+  ///   * script_dir: スクリプトファイルのディレクトリ名
+  int
+  main_loop(
+    int argc,   ///< [in] コマンドラインの引数の数
+    char** argv ///< [in] コマンドラインの引数の配列
+  );
+
+  /// @}
+  //////////////////////////////////////////////////////////////////////
+
+
+public:
+  //////////////////////////////////////////////////////////////////////
   /// @name basic stack manipulation
   /// @{
   //////////////////////////////////////////////////////////////////////
@@ -1402,6 +1427,14 @@ public:
     luaL_setmetatable(mState, tname);
   }
 
+  void
+  L_getmetatable(
+    const char* sig
+  )
+  {
+    luaL_getmetatable(mState, sig);
+  }
+
   void*
   L_testudata(
     int ud,
@@ -1631,32 +1664,7 @@ public:
     int index,       ///< [in]  テーブルのスタック上の位置
     const char* key, ///< [in]  フィールド名
     lua_Integer& val ///< [out] 変換結果を収める変数
-  )
-  {
-    RetType ret = ERROR;
-    int type = get_field(index, key);
-    if ( type == LUA_TNIL ) {
-      // 存在しなかった．
-      ret = NOT_FOUND;
-    }
-    else {
-      bool isnum;
-      tie(isnum, val) = to_integer(-1);
-      if ( isnum ) {
-	ret = OK;
-      }
-      else {
-	// 異なる型だった．
-	ret = ERROR;
-	cerr << "Error: '" << key << "' should be an integer." << endl;
-      }
-    }
-
-    // get_field() で積まれた要素を捨てる．
-    pop(1);
-
-    return ret;
-  }
+  );
 
   /// @brief 指定したフィールドをブール値に変換する．
   /// @retval true 成功した．
@@ -1671,25 +1679,7 @@ public:
     int index,       ///< [in]  テーブルのスタック上の位置
     const char* key, ///< [in]  フィールド名
     bool& val        ///< [out] 変換結果を収める変数
-  )
-  {
-    RetType ret = ERROR;
-    int type = get_field(index, key);
-    if ( type == LUA_TNIL ) {
-      // 存在しなかった．
-      ret = NOT_FOUND;
-    }
-    else {
-      // 全ての型は boolean に変換可能
-      val = to_boolean(-1);
-      ret = OK;
-    }
-
-    // get_field() で積まれた要素を捨てる．
-    pop(1);
-
-    return ret;
-  }
+  );
 
   /// @brief 指定したフィールドを浮動小数点に変換する．
   /// @retval OK 成功した．
@@ -1702,32 +1692,7 @@ public:
     int index,       ///< [in]  テーブルのスタック上の位置
     const char* key, ///< [in]  フィールド名
     lua_Number& val  ///< [out] 変換結果を収める変数
-  )
-  {
-    RetType ret = ERROR;
-    int type = get_field(index, key);
-    if ( type == LUA_TNIL ) {
-      // 存在しなかった．
-      ret = NOT_FOUND;
-    }
-    else {
-      bool isnum;
-      tie(isnum, val) = to_number(-1);
-      if ( isnum ) {
-	ret = OK;
-      }
-      else {
-	// 異なる型だった．
-	ret = ERROR;
-	cerr << "Error: '" << key << "' should be a float number." << endl;
-      }
-    }
-
-    // get_field() で積まれた要素を捨てる．
-    pop(1);
-
-    return ret;
-  }
+  );
 
   /// @brief 指定したフィールドを文字列に変換する．
   /// @retval OK 成功した．
@@ -1740,30 +1705,7 @@ public:
     int index,       ///< [in]  テーブルのスタック上の位置
     const char* key, ///< [in]  フィールド名
     string& val      ///< [out] 変換結果を収める変数
-  )
-  {
-    RetType ret = ERROR;
-    int type = get_field(index, key);
-    if ( type == LUA_TNIL ) {
-      // 存在しなかった．
-      ret = NOT_FOUND;
-    }
-    else {
-      if ( type == LUA_TSTRING ) {
-	val = string(to_string(-1));
-	ret = OK;
-      }
-      else {
-	ret = ERROR;
-	cerr << "Error: '" << key << "' should be a string." << endl;
-      }
-    }
-
-    // get_field() で積まれた要素を捨てる．
-    pop(1);
-
-    return ret;
-  }
+  );
 
   /// @brief 指定したフィールドを vector<int> に変換する．
   /// @retval OK 成功した．
@@ -1776,44 +1718,7 @@ public:
     int index,        ///< [in]  テーブルのスタック上の位置
     const char* key,  ///< [in]  フィールド名
     vector<int>& val  ///< [out] 変換結果を収める変数
-  )
-  {
-    RetType ret = ERROR;
-    int type = get_field(index, key);
-    val.clear();
-    if ( type == LUA_TNIL ) {
-      // 存在しなかった．
-      ret = NOT_FOUND;
-    }
-    else if ( type == LUA_TTABLE ) {
-      int n = L_len(-1);
-      ret = OK;
-      for ( int i = 1; i <= n; ++ i ) {
-	get_table(-1, i);
-	bool isnum;
-	int val1;
-	tie(isnum, val1) = to_integer(-1);
-	if ( isnum ) {
-	  val.push_back(val1);
-	}
-	else {
-	  cerr << "Error: illegal data in table '" << key << "'" << endl;
-	  ret = ERROR;
-	}
-	// get_table() で積んだ値を捨てる．
-	pop(1);
-      }
-    }
-    else {
-      // エラー
-      cerr << "Error: illegal type in '" << key << "'" << endl;
-    }
-
-    // get_field() で積まれた要素を捨てる．
-    pop(1);
-
-    return ret;
-  }
+  );
 
   /// @brief 指定したフィールドを vector<string> に変換する．
   /// @retval OK 成功した．
@@ -1826,37 +1731,7 @@ public:
     int index,          ///< [in]  テーブルのスタック上の位置
     const char* key,    ///< [in]  フィールド名
     vector<string>& val ///< [out] 変換結果を収める変数
-  )
-  {
-    RetType ret = ERROR;
-    int type = get_field(index, key);
-    val.clear();
-    if ( type == LUA_TNIL ) {
-      // 存在しなかった．
-      ret = NOT_FOUND;
-    }
-    else if ( type == LUA_TTABLE ) {
-      int n = L_len(-1);
-      ret = OK;
-      for ( int i = 1; i <= n; ++ i ) {
-	get_table(-1, i);
-	string val1 = to_string(-1);
-	val.push_back(val1);
-	// get_table() で積んだ値を捨てる．
-	pop(1);
-      }
-    }
-    else {
-      // エラー
-      ret = ERROR;
-      cerr << "Error: illegal type in '" << key << "'" << endl;
-    }
-
-    // get_field() で積まれた要素を捨てる．
-    pop(1);
-
-    return ret;
-  }
+  );
 
   /// @}
   //////////////////////////////////////////////////////////////////////
@@ -1879,34 +1754,7 @@ public:
     int index,                      ///< [in] テーブルのスタック上の位置
     const char* key,                ///< [in] フィールド名
     std::function<bool(int)> setter ///< [in] セッター関数
-  )
-  {
-    RetType ret = ERROR;
-    int type = get_field(index, key);
-    if ( type == LUA_TNIL ) {
-      // 存在しなかった．
-      ret = NOT_FOUND;
-    }
-    else {
-      bool isnum;
-      lua_Integer tmp;
-      tie(isnum, tmp) = to_integer(-1);
-      if ( isnum ) {
-	if ( setter(tmp) ) {
-	  ret = OK;
-	}
-      }
-      else {
-	// 異なる型だった．
-	cerr << "Error: '" << key << "' should be an integer." << endl;
-      }
-    }
-
-    // get_field() で積まれた要素を捨てる．
-    pop(1);
-
-    return ret;
-  }
+  );
 
   /// @brief 指定したフィールドをブール値に変換してセッター関数を呼ぶ．
   /// @retval OK 成功した．
@@ -1919,26 +1767,7 @@ public:
     int index,                       ///< [in] テーブルのスタック上の位置
     const char* key,                 ///< [in] フィールド名
     std::function<bool(bool)> setter ///< [in] セッター関数
-  )
-  {
-    RetType ret = ERROR;
-    int type = get_field(index, key);
-    if ( type == LUA_TNIL ) {
-      // 存在しなかった．
-      ret = NOT_FOUND;
-    }
-    else {
-      // 全ての型は boolean に変換可能
-      if ( setter(to_boolean(-1)) ) {
-	ret = OK;
-      }
-    }
-
-    // get_field() で積まれた要素を捨てる．
-    pop(1);
-
-    return ret;
-  }
+  );
 
   /// @brief 指定したフィールドを文字列に変換してセッター関数を呼ぶ．
   /// @retval OK 成功した．
@@ -1951,28 +1780,7 @@ public:
     int index,                                ///< [in] テーブルのスタック上の位置
     const char* key,                          ///< [in] フィールド名
     std::function<bool(const string&)> setter ///< [in] セッター関数
-  )
-  {
-    RetType ret = ERROR;
-    int type = get_field(index, key);
-    if ( type == LUA_TNIL ) {
-      // 存在しなかった．
-      ret = NOT_FOUND;
-    }
-    else if ( type == LUA_TSTRING ) {
-      if ( setter(string(to_string(-1))) ) {
-	ret = OK;
-      }
-    }
-    else {
-      cerr << "Error: '" << key << "' should be a string." << endl;
-    }
-
-    // get_field() で積まれた要素を捨てる．
-    pop(1);
-
-    return ret;
-  }
+  );
 
   /// @brief 指定したフィールドを vector<int> に変換してセッター関数を呼ぶ．
   /// @retval OK 成功した．
@@ -1985,49 +1793,7 @@ public:
     int index,                                     ///< [in] テーブルのスタック上の位置
     const char* key,                               ///< [in] フィールド名
     std::function<bool(const vector<int>&)> setter ///< [in] セッター関数
-  )
-  {
-    RetType ret = ERROR;
-    int type = get_field(index, key);
-    if ( type == LUA_TNIL ) {
-      // 存在しなかった．
-      ret = NOT_FOUND;
-    }
-    else if ( type == LUA_TTABLE ) {
-      int n = L_len(-1);
-      vector<int> val;
-      val.reserve(n);
-      bool break_flag = false;
-      for ( int i = 1; i <= n; ++ i ) {
-	get_table(-1, i);
-	bool isnum;
-	int val1;
-	tie(isnum, val1) = to_integer(-1);
-	if ( isnum ) {
-	  val.push_back(val1);
-	}
-	else {
-	  cerr << "Error: illegal data in table '" << key << "'" << endl;
-	  break_flag = true;
-	  break;
-	}
-	// get_table() で積んだ値を捨てる．
-	pop(1);
-      }
-      if ( !break_flag && setter(val) ) {
-	ret = OK;
-      }
-    }
-    else {
-      // エラー
-      cerr << "Error: illegal type in '" << key << "'" << endl;
-    }
-
-    // get_field() で積まれた要素を捨てる．
-    pop(1);
-
-    return ret;
-  }
+  );
 
   /// @brief 指定したフィールドを vector<string> に変換してセッター関数を呼ぶ．
   /// @retval OK 成功した．
@@ -2040,39 +1806,7 @@ public:
     int index,                                        ///< [in] テーブルのスタック上の位置
     const char* key,                                  ///< [in] フィールド名
     std::function<bool(const vector<string>&)> setter ///< [in] セッター関数
-  )
-  {
-    RetType ret = ERROR;
-    int type = get_field(index, key);
-    if ( type == LUA_TNIL ) {
-      // 存在しなかった．
-      ret = NOT_FOUND;
-    }
-    else if ( type == LUA_TTABLE ) {
-      int n = L_len(-1);
-      vector<string> val;
-      val.reserve(n);
-      for ( int i = 1; i <= n; ++ i ) {
-	get_table(-1, i);
-	string val1 = to_string(-1);
-	val.push_back(val1);
-	// get_table() で積んだ値を捨てる．
-	pop(1);
-      }
-      if ( setter(val) ) {
-	ret = OK;
-      }
-    }
-    else {
-      // エラー
-      cerr << "Error: illegal type in '" << key << "'" << endl;
-    }
-
-    // get_field() で積まれた要素を捨てる．
-    pop(1);
-
-    return ret;
-  }
+  );
 
   /// @}
   //////////////////////////////////////////////////////////////////////
