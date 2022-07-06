@@ -8,10 +8,48 @@
 
 #include "ym/Luapp.h"
 #include <libgen.h> // for dirname()
-#include <ym/ReadLine.h>
+#ifdef HAS_READLINE
+#include <readline/readline.h>
+#include <readline/history.h>
+#endif
 
 
 BEGIN_NAMESPACE_LUAPP
+
+BEGIN_NONAMESPACE
+
+bool
+get_line(
+  const string& prompt,
+  string& linebuf
+)
+{
+#ifdef HAS_READLINE
+  auto line_read = readline(prompt.c_str());
+  if ( line_read == nullptr ) {
+    // EOF
+    return false;
+  }
+  if ( line_read[0] ) {
+    add_history(line_read);
+  }
+  linebuf = string{line_read};
+  free(line_read);
+  return true;
+#else
+  cerr << prompt;
+  cerr.flush();
+  if ( getline(cin, linebuf) ) {
+    return true;
+  }
+  else {
+    return false;
+  }
+#endif
+}
+
+END_NONAMESPACE
+
 
 // @brief インタプリタのメイン処理を行う．
 int
@@ -25,7 +63,7 @@ Luapp::main_loop(
     const char* prompt{"% "};
     for ( ; ; ) {
       string linebuf;
-      if ( !ReadLine::get_line(prompt, linebuf) ) {
+      if ( !get_line(prompt, linebuf) ) {
 	break;
       }
       int err = L_loadstring(linebuf.c_str()) || pcall(0, 0, 0);

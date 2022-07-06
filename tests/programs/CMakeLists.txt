@@ -3,10 +3,7 @@
 # インクルードパスの設定
 # ===================================================================
 include_directories (
-  ${PROJECT_BINARY_DIR}/include
-  ${YM_SUBMODULE_INCLUDE_LIST}
   ${LUA_INCLUDE_DIR}
-  ${Readline_INCLUDE_DIR}
   )
 
 
@@ -42,8 +39,6 @@ endif ()
 
 target_link_libraries ( my_lua
   ${YM_LIB_DEPENDS}
-  ${LUA_LIBRARIES}
-  ${Readline_LIBRARY}
   )
 
 if ( GPERFTOOLS_FOUND )
@@ -77,8 +72,6 @@ endif ()
 
 target_link_libraries ( my_lua_p
   ${YM_LIB_DEPENDS}
-  ${LUA_LIBRARIES}
-  ${Readline_LIBRARY}
   )
 
 if ( GPERFTOOLS_FOUND )
@@ -108,8 +101,6 @@ endif ()
 
 target_link_libraries ( my_lua_d
   ${YM_LIB_DEPENDS}
-  ${LUA_LIBRARIES}
-  ${Readline_LIBRARY}
   )
 
 if ( GPERFTOOLS_FOUND )
