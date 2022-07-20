@@ -36,6 +36,7 @@ include_directories(
 # ===================================================================
 ym_add_object_library ( ym_luapp
   c++-srcs/Luapp.cc
+  c++-srcs/LuaMt19937.cc
   )
 
 if ( Readline_FOUND )
