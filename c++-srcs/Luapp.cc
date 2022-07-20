@@ -483,6 +483,29 @@ Luapp::get_string_list_field(
   return ret;
 }
 
+// @brief lua 上のクラスを定義するためのメタテーブルを登録する関数
+void
+Luapp::reg_metatable(
+  const char* signature,
+  lua_CFunction gc_func,
+  const luaL_Reg* func_table
+)
+{
+  // metatable を作る．
+  L_newmetatable(signature);
+
+  // metatable 自身を __index に登録する．
+  push_value(-1);
+  set_field(-2, "__index");
+
+  // デストラクタを __gc に登録する．
+  push_cfunction(gc_func);
+  set_field(-2, "__gc");
+
+  // 関数テーブルを登録する．
+  L_setfuncs(func_table, 0);
+}
+
 BEGIN_NONAMESPACE
 
 struct luaL_Reg* table = nullptr;
