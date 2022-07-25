@@ -1216,6 +1216,12 @@ public:
     return lua_error(mState);
   }
 
+  /// @brief テーブルの次のキーと値を取り出す．
+  /// @param idx 対象のテーブルのインデックス
+  ///
+  /// - 現在のキーをスタックに積む．
+  /// - 次のキーと値がスタックに積んで返す．
+  /// - 最初は nil をキーとして積む．
   int
   next(
     int idx
@@ -1733,6 +1739,12 @@ public:
     vector<string>& val ///< [out] 変換結果を収める変数
   );
 
+  /// @brief テーブルのキーのリストを作る．
+  vector<string>
+  get_table_keys(
+    int index ///< [in] テーブルのスタック上の位置
+  );
+
   /// @}
   //////////////////////////////////////////////////////////////////////
 
@@ -1919,11 +1931,55 @@ private:
 };
 
 
+//////////////////////////////////////////////////////////////////////
+/// @class LuaError LuaError.h "LuaError.h"
+/// @brief Luapp 関係のエラーを表すクラス
+//////////////////////////////////////////////////////////////////////
+class LuaError :
+  public exception
+{
+public:
+
+  /// @brief コンストラクタ
+  LuaError(
+    const string& msg ///< [in] エラーメッセージ
+  ) : mMsg{msg}
+  {
+  }
+
+  /// @brief デストラクタ
+  ~LuaError() = default;
+
+
+public:
+  //////////////////////////////////////////////////////////////////////
+  // 外部インターフェイス
+  //////////////////////////////////////////////////////////////////////
+
+  /// @brief 内容を表す文字列を返す．
+  const string&
+  str() const
+  {
+    return mMsg;
+  }
+
+
+private:
+  //////////////////////////////////////////////////////////////////////
+  // データメンバ
+  //////////////////////////////////////////////////////////////////////
+
+  // メッセージ
+  string mMsg;
+
+};
+
 END_NAMESPACE_LUAPP
 
 BEGIN_NAMESPACE_YM
 
 using nsLuapp::Luapp;
+using nsLuapp::LuaError;
 
 END_NAMESPACE_YM
 

@@ -302,6 +302,21 @@ Luapp::get_string_list_field(
   return ret;
 }
 
+// @brief テーブルのキーのリストを作る．
+vector<string>
+Luapp::get_table_keys(
+  int index
+)
+{
+  vector<string> key_list;
+  push_nil();
+  while ( next(index) != 0 ) {
+    key_list.push_back(to_string(-2));
+    pop(1);
+  }
+  return key_list;
+}
+
 // @brief 指定したフィールドを整数に変換してセッター関数を呼ぶ．
 Luapp::RetType
 Luapp::get_int_field(
