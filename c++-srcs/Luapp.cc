@@ -521,61 +521,50 @@ Luapp::reg_metatable(
   L_setfuncs(func_table, 0);
 }
 
-BEGIN_NONAMESPACE
-
-struct luaL_Reg* table = nullptr;
-SizeType table_size = 0;
-
-int
-luaopen_mylib(
-  lua_State* L
-)
-{
-  // luaL_newlib とほぼ同様のコード
-  // ただし sizeof(table) が使えないので table_size を使う．
-  luaL_checkversion(L);
-  lua_createtable(L, 0, table_size);
-  luaL_setfuncs(L, table, 0);
-  return 1;
-}
-
-END_NONAMESPACE
-
-// @brief モジュールを登録する関数
+// @brief モジュール用のテーブルを作る関数
 void
-Luapp::reg_module(
-  const char* name,
-  const vector<struct luaL_Reg>& mylib,
-  bool auto_require
+Luapp::create_module(
+  const vector<struct luaL_Reg>& mylib
 )
 {
-
   // C API には struct luaL_reg の配列が必要
-  table_size = mylib.size();
-  table = new luaL_Reg[table_size + 1];
+  SizeType table_size = mylib.size();
+  auto table = new luaL_Reg[table_size + 1];
   for ( SizeType i = 0; i < table_size; ++ i ) {
-   table[i] = mylib[i];
+    table[i] = mylib[i];
   }
   // end-marker
   table[table_size] = {NULL, NULL};
 
-  // lua 上で
-  // package.prelad[name] = luaopen_mylib
-  // と実行するのと同様
-  L_requiref("_G", luaopen_base, 1);
-  L_requiref("package", luaopen_package, 1);
-  pop(2);
+  // luaL_newlib とほぼ同様のコード
+  // ただし sizeof(table) が使えないので table_size を使う．
+  L_checkversion();
+  create_table(0, table_size);
+  L_setfuncs(table, 0);
 
-  get_global("package");
-  get_field(-1, "preload");
-  push_cfunction(luaopen_mylib);
-  set_field(-2, name);
-  pop(2);
+  delete [] table;
+}
 
-  if ( auto_require ) {
-    // 自動的に require "name" を実行しておく
-    L_requiref(name, luaopen_mylib, 1);
-    pop(1);
+// @brief モジュールを登録する関数
+void
+Luapp::reg_module(
+  const char* parent,
+  const char* name
+)
+{
+  if ( parent == nullptr ) {
+    set_global(name);
+  }
+  else {
+    int t = get_global(parent);
+    if ( t != LUA_TTABLE ) {
+      ostringstream buf;
+      buf << "Error: " << parent << " should be a table.";
+      throw LuaError{buf.str()};
+    }
+    push_value(-2);
+    set_field(-2, name);
+    pop(2);
   }
 }
 

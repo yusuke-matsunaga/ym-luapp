@@ -1861,12 +1861,23 @@ public:
     const luaL_Reg* func_table ///< [in] 関数テーブル
   );
 
+  /// @brief モジュール用のテーブルを作る関数
+  ///
+  /// 作られたテーブルはスタックに積まれる．
+  void
+  create_module(
+    const vector<struct luaL_Reg>& mylib ///< [in] モジュールに登録する関数のリスト
+  );
+
   /// @brief モジュールを登録する関数
+  /// 登録するテーブルはスタックの先頭に積まれていると仮定する．
+  ///
+  /// もしもグローバルな名前空間の直下に name というモジュールを作りたい場合には
+  /// parent を nullptr にする．
   void
   reg_module(
-    const char* name,                     ///< [in] モジュール名
-    const vector<struct luaL_Reg>& mylib, ///< [in] モジュールに登録する関数のリスト
-    bool auto_require = true              ///< [in] 自動的に require する時 true にするフラグ
+    const char* parent, ///< [in] 親のモジュール名
+    const char* name    ///< [in] モジュール名
   );
 
   /// @}
