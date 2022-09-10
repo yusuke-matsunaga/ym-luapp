@@ -136,8 +136,7 @@ LuaMt19937::init(
   lua.reg_metatable(MT19937_SIGNATURE, mt19937_gc, mt);
 
   // 生成関数を登録する．
-  lua.push_cfunction(mt19937_new);
-  lua.reg_module(parent, "new_mt19937");
+  lua.reg_cfunction(parent, "new_mt19937", mt19937_new);
 }
 
 // @brief 対象を mt19937 に変換する．
