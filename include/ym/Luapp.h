@@ -1880,6 +1880,21 @@ public:
     const char* name    ///< [in] モジュール名
   );
 
+  /// @brief C関数を登録する関数
+  ///
+  /// もしもグローバルな名前空間の直下に name という関数を登録したい場合には
+  /// parent を nullptr にする．
+  void
+  reg_cfunction(
+    const char* parent, ///< [in] 親のモジュール名
+    const char* name,   ///< [in] 関数名
+    lua_CFunction func  ///< [in] 登録する関数
+  )
+  {
+    push_cfunction(func);
+    reg_module(parent, name);
+  }
+
   /// @}
   //////////////////////////////////////////////////////////////////////
 
