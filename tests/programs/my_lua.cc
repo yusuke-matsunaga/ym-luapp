@@ -7,6 +7,7 @@
 /// All rights reserved.
 
 #include "ym/Luapp.h"
+#include "ym/LuaMt19937.h"
 
 
 int
@@ -15,9 +16,13 @@ main(
   char** argv
 )
 {
-  YM_NAMESPACE::Luapp lua;
+  using namespace YM_NAMESPACE;
+
+  Luapp lua;
 
   lua.L_openlibs();
+
+  LuaMt19937::init(lua.lua_state());
 
   return lua.main_loop(argc, argv);
 }

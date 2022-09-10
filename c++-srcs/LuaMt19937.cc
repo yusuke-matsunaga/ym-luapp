@@ -123,7 +123,7 @@ END_NONAMESPACE
 void
 LuaMt19937::init(
   lua_State* L,
-  vector<struct luaL_Reg>& mylib
+  const char* parent
 )
 {
   static const struct luaL_Reg mt [] = {
@@ -136,7 +136,8 @@ LuaMt19937::init(
   lua.reg_metatable(MT19937_SIGNATURE, mt19937_gc, mt);
 
   // 生成関数を登録する．
-  mylib.push_back({"new_mt19937", mt19937_new});
+  lua.push_cfunction(mt19937_new);
+  lua.reg_module(parent, "new_mt19937");
 }
 
 // @brief 対象を mt19937 に変換する．
